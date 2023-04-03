@@ -1,9 +1,10 @@
 <script setup>
-import { ref } from "vue";
+import { ref, computed } from "vue";
 
 const loading = ref(false);
 const error = ref(false);
 const products = ref([]);
+let searchQuery = ref("");
 
 async function fetchProducts() {
   loading.value = true;
@@ -20,6 +21,14 @@ async function fetchProducts() {
 }
 
 fetchProducts();
+
+const searchedProducts = computed(() => {
+  return products.value.filter((product) => {
+    return (
+      product.name.toLowerCase().indexOf(searchQuery.value.toLowerCase()) !== -1
+    );
+  });
+});
 </script>
 
 <template>
@@ -32,6 +41,7 @@ fetchProducts();
           <div class="input-group">
             <span class="input-group-text">Filtrage</span>
             <input
+              v-model="searchQuery"
               type="text"
               class="form-control"
               placeholder="Filtrer par nom"
@@ -71,13 +81,18 @@ fetchProducts();
       </div>
     </div>
 
-    <div v-if="error" class="alert alert-danger mt-4" role="alert" data-test-error>
+    <div
+      v-if="error"
+      class="alert alert-danger mt-4"
+      role="alert"
+      data-test-error
+    >
       Une erreur est survenue lors du chargement des produits.
     </div>
     <div class="row">
       <div
         class="col-md-4 mb-4"
-        v-for="product in products"
+        v-for="product in searchedProducts"
         data-test-product
         :key="product.id"
       >
@@ -101,7 +116,7 @@ fetchProducts();
               </RouterLink>
             </h5>
             <p class="card-text" data-test-product-description>
-                {{ product.description }}
+              {{ product.description }}
             </p>
             <p class="card-text">
               Vendeur :
@@ -109,13 +124,28 @@ fetchProducts();
                 data-test-product-seller
                 :to="{ name: 'User', params: { userId: product.sellerId } }"
               >
-                  {{ product.seller.username }}
+                {{ product.seller.username }}
               </RouterLink>
             </p>
-            <p class="card-text" data-test-product-date>
-              En cours jusqu'au {{product.endDate}}
+            <p
+              v-if="new Date(product.endDate) > new Date()"
+              class="card-text"
+              data-test-product-date
+            >
+              En cours jusqu'au {{ product.endDate }}
             </p>
-            <p class="card-text" data-test-product-price>Prix actuel : {{product.originalPrice }} €</p>
+            <p v-else class="card-text" data-test-product-date>Terminé</p>
+
+            <p class="card-text" data-test-product-price>
+              {{
+                new Date(product.endDate) > new Date()
+                  ? "Prix de départ : " + product.originalPrice + " €"
+                  : "Prix actuel : " +
+                    (product.bids.length
+                      ? product.bids[product.bids.length - 1].price + " €"
+                      : product.originalPrice + " €")
+              }}
+            </p>
           </div>
         </div>
       </div>
