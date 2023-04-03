@@ -74,6 +74,7 @@ console.log("test");
                     :src="product.pictureUrl"
                     class="card-img-top"
                     data-test-product-picture
+                    alt="Image non trouvée"
                   />
                 </RouterLink>
                 <div class="card-body">
