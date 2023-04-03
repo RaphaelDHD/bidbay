@@ -90,18 +90,12 @@ router.put('/api/products/:productId', authMiddleware, async (req, res, next) =>
     })
     if (!product) {
       res.status(404).send()
-    } else if (product.sellerId !== req.user.id) {
+    } else if (product.sellerId !== req.user.id && !req.user.admin) { // Modified this line
       res.status(403).send()
     } else {
-      if (req.user.admin) {
-        const { name, description, category, originalPrice, pictureUrl, endDate } = req.body
-        await product.update({ name, description, category, originalPrice, pictureUrl, endDate })
-        res.json(product)
-      } else {
-        const { name, description, category, originalPrice, pictureUrl, endDate } = req.body
-        await product.update({ name, description, category, originalPrice, pictureUrl, endDate })
-        res.json(product)
-      }
+      const { name, description, category, originalPrice, pictureUrl, endDate } = req.body
+      await product.update({ name, description, category, originalPrice, pictureUrl, endDate })
+      res.json(product)
     }
   } catch (error) {
     next(error)
@@ -113,7 +107,7 @@ router.delete('/api/products/:productId', authMiddleware, async (req, res, next)
     const product = await Product.findByPk(req.params.productId)
     if (!product) {
       res.status(404).send()
-    } else if (product.sellerId !== req.user.id) {
+    } else if (product.sellerId !== req.user.id && !req.user.admin) {
       res.status(403).send()
     } else {
       await product.destroy()
