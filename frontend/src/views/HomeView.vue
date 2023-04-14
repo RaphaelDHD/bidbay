@@ -8,11 +8,14 @@ let searchQuery = ref("");
 let sortOption = ref("nom");
 
 async function fetchProducts() {
-  loading.value = true;
-  error.value = false;
   try {
+    loading.value = true;
     const response = await fetch("http://localhost:3000/api/products");
-    products.value = await response.json();
+    const data = await response.json();
+    if (!Array.isArray(data)) {
+      throw new Error("Data received is not an array");
+    }
+    products.value = data;
   } catch (e) {
     error.value = true;
     console.log(e);
@@ -30,7 +33,21 @@ const searchedProducts = computed(() => {
       a.name.localeCompare(b.name, "fr", { ignorePunctuation: true })
     ); // sort by name using localeCompare to handle accents and special characters
   } else if (sortOption.value === "prix") {
-    sortedProducts.sort((a, b) => a.price - b.price); // sort by price
+    sortedProducts.sort((a, b) => {
+      const aPrice =
+        new Date(a.endDate) > new Date()
+          ? a.originalPrice
+          : a.bids.length
+          ? a.bids[a.bids.length - 1].price
+          : a.originalPrice;
+      const bPrice =
+        new Date(b.endDate) > new Date()
+          ? b.originalPrice
+          : b.bids.length
+          ? b.bids[b.bids.length - 1].price
+          : b.originalPrice;
+      return aPrice - bPrice;
+    }); // sort by price
   }
   return sortedProducts.filter((product) =>
     product.name.toLowerCase().includes(searchQuery.value.toLowerCase())
@@ -66,7 +83,7 @@ const searchedProducts = computed(() => {
             aria-expanded="false"
             data-test-sorter
           >
-            Trier par nom
+            Trier par {{ sortOption }}
           </button>
           <ul class="dropdown-menu dropdown-menu-end">
             <li>
