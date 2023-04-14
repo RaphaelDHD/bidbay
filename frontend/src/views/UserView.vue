@@ -1,31 +1,28 @@
 <script setup>
-import { ref, computed } from "vue";
-import { useRoute } from "vue-router";
+import { ref } from "vue";
 
 import { useAuthStore } from "@/store/auth";
 
 const { isAuthenticated, userData } = useAuthStore();
 
-const route = useRoute();
-
 const user = ref(null);
 const loading = ref(false);
-const error = ref(null);
+const error = ref(false);
 
-let userId = computed(() => route.params.userId);
-
-if (!isAuthenticated || userData == null) {
-  window.location.href = "LoginView.vue";
-}
-
-async function fetchUser() {
+async function fetchUser(idUser) {
   loading.value = true;
   error.value = false;
-  let str = "http://localhost:3000/api/users/" + userData.value.id;
+  let str;
+  if (idUser === "me") {
+    str = "http://localhost:3000/api/users/" + userData.value.id;
+  } else {
+    str = "http://localhost:3000/api/users/" + idUser;
+  }
 
   try {
     const response = await fetch(str);
     user.value = await response.json();
+    loading.value = false;
   } catch (e) {
     error.value = true;
     console.log(e);
@@ -33,16 +30,35 @@ async function fetchUser() {
     loading.value = false;
   }
 }
-fetchUser();
+
+if (!isAuthenticated || userData == null) {
+  window.location.href = "LoginView.vue";
+}
+
+if (window.location.href.startsWith("http://localhost:5173/users/")) {
+  let userId;
+  if (window.location.href.includes("me")) {
+    fetchUser("me");
+  } else {
+    // Action pour l'utilisateur avec l'identifiant récupéré depuis l'URL
+    const regex = /http:\/\/localhost:5173\/users\/(.+)/;
+    const match = window.location.href.match(regex);
+    if (match && match.length > 1) {
+      userId = match[1];
+    }
+    fetchUser(userId);
+  }
+}
+
 console.log("test");
 </script>
 
 <template>
   <div>
     <h1 class="text-center" data-test-username>
-      Utilisateur {{ user.username }}
+      Utilisateur {{ user ? user.username : "" }}
       <span
-        v-if="user.admin"
+        v-if="user ? user.admin : ''"
         class="badge rounded-pill bg-primary"
         data-test-admin
         >Admin</span
@@ -55,14 +71,14 @@ console.log("test");
     <div v-if="error" class="alert alert-danger mt-3" data-test-error>
       Une erreur est survenue
     </div>
-    <div data-test-view>
+    <div v-if="!loading && !error" data-test-view>
       <div class="row">
         <div class="col-lg-6">
           <h2>Produits</h2>
           <div class="row">
             <div
               class="col-md-6 mb-6 py-2"
-              v-for="product in user.products"
+              v-for="product in user ? user.products : null"
               :key="product.id"
               data-test-product
             >
@@ -111,7 +127,11 @@ console.log("test");
               </tr>
             </thead>
             <tbody>
-              <tr v-for="bid in user.bids" :key="bid.id" data-test-bid>
+              <tr
+                v-for="bid in user ? user.bids : null"
+                :key="bid.id"
+                data-test-bid
+              >
                 <td>
                   <RouterLink
                     :to="{
