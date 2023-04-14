@@ -5,6 +5,7 @@ const loading = ref(false);
 const error = ref(false);
 const products = ref([]);
 let searchQuery = ref("");
+let sortOption = ref("nom");
 
 async function fetchProducts() {
   loading.value = true;
@@ -23,11 +24,17 @@ async function fetchProducts() {
 fetchProducts();
 
 const searchedProducts = computed(() => {
-  return products.value.filter((product) => {
-    return (
-      product.name.toLowerCase().indexOf(searchQuery.value.toLowerCase()) !== -1
-    );
-  });
+  let sortedProducts = [...products.value]; // make a copy of products to avoid modifying the original
+  if (sortOption.value === "nom") {
+    sortedProducts.sort((a, b) =>
+      a.name.localeCompare(b.name, "fr", { ignorePunctuation: true })
+    ); // sort by name using localeCompare to handle accents and special characters
+  } else if (sortOption.value === "prix") {
+    sortedProducts.sort((a, b) => a.price - b.price); // sort by price
+  }
+  return sortedProducts.filter((product) =>
+    product.name.toLowerCase().includes(searchQuery.value.toLowerCase())
+  ); // filter by search query
 });
 </script>
 
@@ -63,10 +70,17 @@ const searchedProducts = computed(() => {
           </button>
           <ul class="dropdown-menu dropdown-menu-end">
             <li>
-              <a class="dropdown-item" href="#"> Nom </a>
+              <a class="dropdown-item" href="#" @click="sortOption = 'nom'">
+                Nom
+              </a>
             </li>
             <li>
-              <a class="dropdown-item" href="#" data-test-sorter-price>
+              <a
+                class="dropdown-item"
+                href="#"
+                @click="sortOption = 'prix'"
+                data-test-sorter-price
+              >
                 Prix
               </a>
             </li>
