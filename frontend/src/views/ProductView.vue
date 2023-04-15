@@ -10,28 +10,96 @@ const router = useRouter();
 
 const productId = ref(route.params.productId);
 
-function formatDate(date) {
+const product = ref(null);
+const seller = ref(null);
+const loading = ref(false);
+const error = ref(false);
+let form = ref(false);
+
+async function fetchProduct() {
+  loading.value = true;
+
+  const str = "http://localhost:3000/api/products/" + productId.value;
+
+  try {
+    const response = await fetch(str);
+    product.value = await response.json();
+
+    const str2 = "http://localhost:3000/api/users/" + product.value.sellerId;
+    const response2 = await fetch(str2);
+    seller.value = await response2.json();
+
+    loading.value = false;
+  } catch (e) {
+    error.value = true;
+    console.log(e);
+  } finally {
+    loading.value = false;
+  }
+
+  if (userData.value.id !== product.value.sellerId) {
+    form.value = true;
+  }
+}
+
+async function delBid(bidId) {
+  console.log("rentrerFonction");
+
+  const apiUrl = "http://localhost:3000/api/bids/";
+  const bid = bidId;
+
+  const requestOptions = {
+    method: "DELETE",
+    headers: {
+      "Content-Type": "application/json",
+      Authorization: `Bearer ${token.value}`,
+    },
+  };
+
+  fetch(apiUrl + bid, requestOptions)
+    .then((response) => {
+      if (response.ok) {
+        console.log("Enchère supprimée avec succès");
+      } else {
+        console.error("Erreur lors de la suppression de l'enchère");
+      }
+    })
+    .catch((error) => {
+      console.error("Erreur lors de la suppression de l'enchère", error);
+    });
+
+  router.push({name: "Product", params: {productId: productId}});
+}
+
+/* function formatDate(date) {
   const options = { year: "numeric", month: "long", day: "numeric" };
   return new Date(date).toLocaleDateString("fr-FR", options);
-}
+} */
+
+fetchProduct();
 </script>
 
 <template>
   <div class="row">
-    <div class="text-center mt-4" data-test-loading>
+    <div v-if="loading" class="text-center mt-4" data-test-loading>
       <div class="spinner-border" role="status">
         <span class="visually-hidden">Chargement...</span>
       </div>
     </div>
 
-    <div class="alert alert-danger mt-4" role="alert" data-test-error>
+    <div
+      v-if="error"
+      class="alert alert-danger mt-4"
+      role="alert"
+      data-test-error
+    >
       Une erreur est survenue lors du chargement des produits.
     </div>
-    <div class="row" data-test-product>
+    <div v-if="!loading && !error" class="row" data-test-product>
       <!-- Colonne de gauche : image et compte à rebours -->
       <div class="col-lg-4">
         <img
-          src="https://picsum.photos/id/250/512/512"
+          v-bind:src="product.pictureUrl"
           alt=""
           class="img-fluid rounded mb-3"
           data-test-product-picture
@@ -53,12 +121,12 @@ function formatDate(date) {
         <div class="row">
           <div class="col-lg-6">
             <h1 class="mb-3" data-test-product-name>
-              Appareil photo argentique
+              {{ product.name }}
             </h1>
           </div>
           <div class="col-lg-6 text-end">
             <RouterLink
-              :to="{ name: 'ProductEdition', params: { productId: 'TODO' } }"
+              :to="{ name: 'ProductEdition', params: { productId: productId } }"
               class="btn btn-primary"
               data-test-edit-product
             >
@@ -72,22 +140,23 @@ function formatDate(date) {
         </div>
 
         <h2 class="mb-3">Description</h2>
-        <p data-test-product-description>
-          Appareil photo argentique classique, parfait pour les amateurs de
-          photographie
-        </p>
+        <p data-test-product-description>{{ product.description }}</p>
 
         <h2 class="mb-3">Informations sur l'enchère</h2>
         <ul>
-          <li data-test-product-price>Prix de départ : 17 €</li>
-          <li data-test-product-end-date>Date de fin : 20 juin 2026</li>
+          <li data-test-product-price>
+            Prix de départ : {{ product.originalPrice }} €
+          </li>
+          <li data-test-product-end-date>
+            Date de fin : {{ product.endDate.slice(0, 10) }}
+          </li>
           <li>
             Vendeur :
             <router-link
-              :to="{ name: 'User', params: { userId: 'TODO' } }"
+              :to="{ name: 'User', params: { userId: product.sellerId } }"
               data-test-product-seller
             >
-              alice
+              {{ seller.username }}
             </router-link>
           </li>
         </ul>
@@ -103,19 +172,23 @@ function formatDate(date) {
             </tr>
           </thead>
           <tbody>
-            <tr v-for="i in 10" :key="i" data-test-bid>
+            <tr v-for="bid in product.bids" :key="bid.id" data-test-bid>
               <td>
                 <router-link
-                  :to="{ name: 'User', params: { userId: 'TODO' } }"
+                  :to="{ name: 'User', params: { userId: bid.bidder.id } }"
                   data-test-bid-bidder
                 >
-                  charly
+                  {{ bid.bidder.username }}
                 </router-link>
               </td>
-              <td data-test-bid-price>43 €</td>
-              <td data-test-bid-date>22 mars 2026</td>
-              <td>
-                <button class="btn btn-danger btn-sm" data-test-delete-bid>
+              <td data-test-bid-price>{{ bid.price }} €</td>
+              <td data-test-bid-date>{{ bid.date.slice(0, 10) }}</td>
+              <td v-if="isAdmin || userData.username === bid.bidder.username">
+                <button
+                  class="btn btn-danger btn-sm"
+                  @click="delBid(bid.id)"
+                  data-test-delete-bid
+                >
                   Supprimer
                 </button>
               </td>
@@ -124,7 +197,7 @@ function formatDate(date) {
         </table>
         <p data-test-no-bids>Aucune offre pour le moment</p>
 
-        <form data-test-bid-form>
+        <form v-if="form" data-test-bid-form>
           <div class="form-group">
             <label for="bidAmount">Votre offre :</label>
             <input
