@@ -1,16 +1,21 @@
 <script setup>
-import { ref } from "vue";
+import { ref, computed } from "vue";
 
 const loading = ref(false);
 const error = ref(false);
 const products = ref([]);
+let searchQuery = ref("");
+let sortOption = ref("nom");
 
 async function fetchProducts() {
-  loading.value = true;
-  error.value = false;
   try {
+    loading.value = true;
     const response = await fetch("http://localhost:3000/api/products");
-    products.value = await response.json();
+    const data = await response.json();
+    if (!Array.isArray(data)) {
+      throw new Error("Data received is not an array");
+    }
+    products.value = data;
   } catch (e) {
     error.value = true;
     console.log(e);
@@ -20,6 +25,34 @@ async function fetchProducts() {
 }
 
 fetchProducts();
+
+const searchedProducts = computed(() => {
+  let sortedProducts = [...products.value]; // make a copy of products to avoid modifying the original
+  if (sortOption.value === "nom") {
+    sortedProducts.sort((a, b) =>
+      a.name.localeCompare(b.name, "fr", { ignorePunctuation: true })
+    ); // sort by name using localeCompare to handle accents and special characters
+  } else if (sortOption.value === "prix") {
+    sortedProducts.sort((a, b) => {
+      const aPrice =
+        new Date(a.endDate) > new Date()
+          ? a.originalPrice
+          : a.bids.length
+          ? a.bids[a.bids.length - 1].price
+          : a.originalPrice;
+      const bPrice =
+        new Date(b.endDate) > new Date()
+          ? b.originalPrice
+          : b.bids.length
+          ? b.bids[b.bids.length - 1].price
+          : b.originalPrice;
+      return aPrice - bPrice;
+    }); // sort by price
+  }
+  return sortedProducts.filter((product) =>
+    product.name.toLowerCase().includes(searchQuery.value.toLowerCase())
+  ); // filter by search query
+});
 </script>
 
 <template>
@@ -32,6 +65,7 @@ fetchProducts();
           <div class="input-group">
             <span class="input-group-text">Filtrage</span>
             <input
+              v-model="searchQuery"
               type="text"
               class="form-control"
               placeholder="Filtrer par nom"
@@ -49,14 +83,21 @@ fetchProducts();
             aria-expanded="false"
             data-test-sorter
           >
-            Trier par nom
+            Trier par {{ sortOption }}
           </button>
           <ul class="dropdown-menu dropdown-menu-end">
             <li>
-              <a class="dropdown-item" href="#"> Nom </a>
+              <a class="dropdown-item" href="#" @click="sortOption = 'nom'">
+                Nom
+              </a>
             </li>
             <li>
-              <a class="dropdown-item" href="#" data-test-sorter-price>
+              <a
+                class="dropdown-item"
+                href="#"
+                @click="sortOption = 'prix'"
+                data-test-sorter-price
+              >
                 Prix
               </a>
             </li>
@@ -65,19 +106,24 @@ fetchProducts();
       </div>
     </div>
 
-    <div class="text-center mt-4" data-test-loading>
+    <div v-if="loading" class="text-center mt-4" data-test-loading>
       <div class="spinner-border" role="status">
         <span class="visually-hidden">Chargement...</span>
       </div>
     </div>
 
-    <div class="alert alert-danger mt-4" role="alert" data-test-error>
+    <div
+      v-if="error"
+      class="alert alert-danger mt-4"
+      role="alert"
+      data-test-error
+    >
       Une erreur est survenue lors du chargement des produits.
     </div>
     <div class="row">
       <div
         class="col-md-4 mb-4"
-        v-for="product in products"
+        v-for="product in searchedProducts"
         data-test-product
         :key="product.id"
       >
@@ -101,7 +147,7 @@ fetchProducts();
               </RouterLink>
             </h5>
             <p class="card-text" data-test-product-description>
-                {{ product.description }}
+              {{ product.description }}
             </p>
             <p class="card-text">
               Vendeur :
@@ -109,13 +155,28 @@ fetchProducts();
                 data-test-product-seller
                 :to="{ name: 'User', params: { userId: product.sellerId } }"
               >
-                  {{ product.seller.username }}
+                {{ product.seller.username }}
               </RouterLink>
             </p>
-            <p class="card-text" data-test-product-date>
-              En cours jusqu'au {{product.endDate}}
+            <p
+              v-if="new Date(product.endDate) > new Date()"
+              class="card-text"
+              data-test-product-date
+            >
+              En cours jusqu'au {{ product.endDate }}
             </p>
-            <p class="card-text" data-test-product-price>Prix actuel : {{product.originalPrice }} €</p>
+            <p v-else class="card-text" data-test-product-date>Terminé</p>
+
+            <p class="card-text" data-test-product-price>
+              {{
+                new Date(product.endDate) > new Date()
+                  ? "Prix de départ : " + product.originalPrice + " €"
+                  : "Prix actuel : " +
+                    (product.bids.length
+                      ? product.bids[product.bids.length - 1].price + " €"
+                      : product.originalPrice + " €")
+              }}
+            </p>
           </div>
         </div>
       </div>
