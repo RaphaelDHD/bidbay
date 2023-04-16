@@ -231,7 +231,7 @@ fetchProduct();
           </tbody>
         </table>
 
-        <p data-test-no-bids> Aucune offre pour le moment </p>
+        <p v-if="product.bids.length === 0" data-test-no-bids> Aucune offre pour le moment </p>
 
         <form v-if="form" data-test-bid-form>
           <div class="form-group">
