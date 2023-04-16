@@ -14,7 +14,9 @@ const countdown = computed(() => {
   if (remainingTime <= 0) return "Terminé";
 
   const days = Math.floor(remainingTime / (1000 * 60 * 60 * 24));
-  const hours = Math.floor((remainingTime % (1000 * 60 * 60 * 24)) / (1000 * 60 * 60));
+  const hours = Math.floor(
+    (remainingTime % (1000 * 60 * 60 * 24)) / (1000 * 60 * 60)
+  );
   const minutes = Math.floor((remainingTime % (1000 * 60 * 60)) / (1000 * 60));
   const seconds = Math.floor((remainingTime % (1000 * 60)) / 1000);
 
@@ -69,8 +71,7 @@ async function fetchProduct() {
 async function delBid(bidId) {
   console.log("rentrerFonction");
 
-  const apiUrl = "http://localhost:3000/api/bids/";
-  const bid = bidId;
+  const apiUrl = `http://localhost:3000/api/bids/${bidId}`;
 
   const requestOptions = {
     method: "DELETE",
@@ -80,10 +81,15 @@ async function delBid(bidId) {
     },
   };
 
-  fetch(apiUrl + bid, requestOptions)
+  fetch(apiUrl, requestOptions)
     .then((response) => {
       if (response.ok) {
         console.log("Enchère supprimée avec succès");
+        for (let i = 0; i < product.value.bids.length; i++) {
+          if (product.value.bids[i].id === bidId) {
+            product.value.bids.splice(i,1);
+          }
+        }
       } else {
         console.error("Erreur lors de la suppression de l'enchère");
       }
@@ -92,7 +98,7 @@ async function delBid(bidId) {
       console.error("Erreur lors de la suppression de l'enchère", error);
     });
 
-  router.push({ name: "Product", params: { productId: productId } });
+  //router.push({ name: "Product", params: { productId: productId } });
 }
 
 async function deleteProduct() {
@@ -121,7 +127,6 @@ async function deleteProduct() {
   }
 }
 
-
 fetchProduct();
 </script>
 
@@ -133,13 +138,23 @@ fetchProduct();
       </div>
     </div>
 
-    <div v-if="error" class="alert alert-danger mt-4" role="alert" data-test-error>
+    <div
+      v-if="error"
+      class="alert alert-danger mt-4"
+      role="alert"
+      data-test-error
+    >
       Une erreur est survenue lors du chargement des produits.
     </div>
     <div v-if="!loading && !error" class="row" data-test-product>
       <!-- Colonne de gauche : image et compte à rebours -->
       <div class="col-lg-4">
-        <img v-bind:src="product.pictureUrl" alt="" class="img-fluid rounded mb-3" data-test-product-picture />
+        <img
+          v-bind:src="product.pictureUrl"
+          alt=""
+          class="img-fluid rounded mb-3"
+          data-test-product-picture
+        />
         <div class="card">
           <div class="card-header">
             <h5 class="card-title">Compte à rebours</h5>
@@ -161,16 +176,25 @@ fetchProduct();
             </h1>
           </div>
           <div class="col-lg-6 text-end">
-            <RouterLink v-if="
-              isAuthenticated && (userData.id === product.sellerId || isAdmin)
-            " :to="{ name: 'ProductEdition', params: { productId: productId } }" class="btn btn-primary"
-              data-test-edit-product>
+            <RouterLink
+              v-if="
+                isAuthenticated && (userData.id === product.sellerId || isAdmin)
+              "
+              :to="{ name: 'ProductEdition', params: { productId: productId } }"
+              class="btn btn-primary"
+              data-test-edit-product
+            >
               Editer
             </RouterLink>
             &nbsp;
-            <button v-if="
-              isAuthenticated && (userData.id === product.sellerId || isAdmin)
-            " class="btn btn-danger" data-test-delete-product @click="deleteProduct()">
+            <button
+              v-if="
+                isAuthenticated && (userData.id === product.sellerId || isAdmin)
+              "
+              class="btn btn-danger"
+              data-test-delete-product
+              @click="deleteProduct()"
+            >
               Supprimer
             </button>
           </div>
@@ -188,13 +212,18 @@ fetchProduct();
             Date de fin :
             {{
               new Date(product.endDate).toLocaleString("fr-FR", {
-                day: 'numeric', month: 'long', year:
-                  'numeric'
-              }) }}
+                day: "numeric",
+                month: "long",
+                year: "numeric",
+              })
+            }}
           </li>
           <li>
             Vendeur :
-            <router-link :to="{ name: 'User', params: { userId: product.sellerId } }" data-test-product-seller>
+            <router-link
+              :to="{ name: 'User', params: { userId: product.sellerId } }"
+              data-test-product-seller
+            >
               {{ seller.username }}
             </router-link>
           </li>
@@ -213,17 +242,34 @@ fetchProduct();
           <tbody>
             <tr v-for="bid in product.bids" :key="bid.id" data-test-bid>
               <td>
-                <router-link :to="{ name: 'User', params: { userId: bid.bidder.id } }" data-test-bid-bidder>
+                <router-link
+                  :to="{ name: 'User', params: { userId: bid.bidder.id } }"
+                  data-test-bid-bidder
+                >
                   {{ bid.bidder.username }}
                 </router-link>
               </td>
               <td data-test-bid-price>{{ bid.price }} €</td>
-              <td data-test-bid-date>{{ new Date(bid.date).toLocaleDateString('fr-FR', {
-                year: 'numeric', month: 'long',
-                day: 'numeric'
-              }) }}</td>
-              <td v-if="(isAdmin || (userData && userData.username === bid.bidder.username))">
-                <button class="btn btn-danger btn-sm" @click="delBid(bid.id)" data-test-delete-bid>
+              <td data-test-bid-date>
+                {{
+                  new Date(bid.date).toLocaleDateString("fr-FR", {
+                    year: "numeric",
+                    month: "long",
+                    day: "numeric",
+                  })
+                }}
+              </td>
+              <td
+                v-if="
+                  isAdmin ||
+                  (userData && userData.username === bid.bidder.username)
+                "
+              >
+                <button
+                  class="btn btn-danger btn-sm"
+                  @click="delBid(bid.id)"
+                  data-test-delete-bid
+                >
                   Supprimer
                 </button>
               </td>
@@ -231,17 +277,29 @@ fetchProduct();
           </tbody>
         </table>
 
-        <p v-if="product.bids.length === 0" data-test-no-bids> Aucune offre pour le moment </p>
+        <p v-if="product.bids.length === 0" data-test-no-bids>
+          Aucune offre pour le moment
+        </p>
 
         <form v-if="form" data-test-bid-form>
           <div class="form-group">
             <label for="bidAmount">Votre offre :</label>
-            <input type="number" class="form-control" id="bidAmount" data-test-bid-form-price />
+            <input
+              type="number"
+              class="form-control"
+              id="bidAmount"
+              data-test-bid-form-price
+            />
             <small class="form-text text-muted">
               Le montant doit être supérieur à 10 €.
             </small>
           </div>
-          <button  type="submit" class="btn btn-primary" disabled data-test-submit-bid>
+          <button
+            type="submit"
+            class="btn btn-primary"
+            disabled
+            data-test-submit-bid
+          >
             Enchérir
           </button>
         </form>
