@@ -33,6 +33,7 @@ const seller = ref(null);
 const loading = ref(false);
 const error = ref(false);
 const bidPrice = ref(null);
+const maxBid = ref(0);
 let form = ref(false);
 
 async function fetchProduct() {
@@ -44,6 +45,12 @@ async function fetchProduct() {
     const response = await fetch(str);
     product.value = await response.json();
 
+    for (let i = 0; i < product.value.bids.length; i++) {
+      if (product.value.bids[i].price > maxBid.value) {
+        maxBid.value = product.value.bids[i].price;
+      }
+    }
+    bidPrice.value = maxBid.value + 1;
     const str2 = "http://localhost:3000/api/users/" + product.value.sellerId;
     const response2 = await fetch(str2);
     seller.value = await response2.json();
@@ -322,6 +329,7 @@ fetchProduct();
             type="submit"
             class="btn btn-primary"
             @click="addBid"
+            v-bind:disabled="maxBid > bidPrice"
             data-test-submit-bid
           >
             Enchérir
