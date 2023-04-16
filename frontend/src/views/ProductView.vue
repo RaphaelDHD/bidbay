@@ -32,6 +32,7 @@ const product = ref(null);
 const seller = ref(null);
 const loading = ref(false);
 const error = ref(false);
+const bidPrice = ref(null);
 let form = ref(false);
 
 async function fetchProduct() {
@@ -87,7 +88,7 @@ async function delBid(bidId) {
         console.log("Enchère supprimée avec succès");
         for (let i = 0; i < product.value.bids.length; i++) {
           if (product.value.bids[i].id === bidId) {
-            product.value.bids.splice(i,1);
+            product.value.bids.splice(i, 1);
           }
         }
       } else {
@@ -99,6 +100,28 @@ async function delBid(bidId) {
     });
 
   //router.push({ name: "Product", params: { productId: productId } });
+}
+
+async function addBid() {
+  const response = await fetch(
+    `http://localhost:3000/api/products/${productId.value}/bids`,
+    {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        Authorization: `Bearer ${token.value}`,
+      },
+      body: JSON.stringify({
+        price: bidPrice,
+      }),
+    }
+  );
+  if (response.ok) {
+    console.log("ajout reussi");
+  } else {
+    console.log("fail");
+    error.value = true;
+  }
 }
 
 async function deleteProduct() {
@@ -288,6 +311,7 @@ fetchProduct();
               type="number"
               class="form-control"
               id="bidAmount"
+              v-model="bidPrice"
               data-test-bid-form-price
             />
             <small class="form-text text-muted">
@@ -297,7 +321,7 @@ fetchProduct();
           <button
             type="submit"
             class="btn btn-primary"
-            disabled
+            @click="addBid"
             data-test-submit-bid
           >
             Enchérir
